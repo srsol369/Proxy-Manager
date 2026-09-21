@@ -1,0 +1,9 @@
+#pragma once
+
+#define IDI_APPICON 101
+#define IDR_TRAYMENU 102
+
+#define IDM_TRAY_SHOW 40001
+#define IDM_TRAY_CONNECT 40002
+#define IDM_TRAY_DISCONNECT 40003
+#define IDM_TRAY_EXIT 40004

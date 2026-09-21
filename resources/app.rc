@@ -1,0 +1,14 @@
+#include "resource.h"
+
+IDR_TRAYMENU MENU
+BEGIN
+    POPUP ""
+    BEGIN
+        MENUITEM "Show window", IDM_TRAY_SHOW
+        MENUITEM SEPARATOR
+        MENUITEM "Connect", IDM_TRAY_CONNECT
+        MENUITEM "Disconnect", IDM_TRAY_DISCONNECT
+        MENUITEM SEPARATOR
+        MENUITEM "Exit", IDM_TRAY_EXIT
+    END
+END
