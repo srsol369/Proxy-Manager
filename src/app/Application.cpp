@@ -1,5 +1,6 @@
 #include "app/Application.h"
 
+#include "common/FileDialog.h"
 #include "config/ConfigStore.h"
 #include "ping/Pinger.h"
 #include "proxy/WinProxy.h"
@@ -7,7 +8,9 @@
 
 #include "resource.h"
 
+#include <algorithm>
 #include <cstring>
+#include <set>
 
 namespace npm {
 
@@ -52,6 +55,17 @@ void Application::DrawUi() {
 void Application::RequestExit() {
     wantsExit_ = true;
     if (hwnd_) {
+        if (!IsIconic(hwnd_) && !IsZoomed(hwnd_) && IsWindowVisible(hwnd_)) {
+            RECT rc{};
+            if (GetWindowRect(hwnd_, &rc)) {
+                WindowRect toSave;
+                toSave.x = rc.left;
+                toSave.y = rc.top;
+                toSave.width = rc.right - rc.left;
+                toSave.height = rc.bottom - rc.top;
+                ConfigStore::SaveWindowRect(toSave);
+            }
+        }
         DestroyWindow(hwnd_);
     }
 }
@@ -117,7 +131,7 @@ void Application::ConnectSelected() {
         hasPreviousOsProxy = WinProxy::CaptureCurrent(previousOsProxy, error);
     }
 
-    if (!WinProxy::ApplyHttpProxy(server->host, server->port, error)) {
+    if (!WinProxy::ApplyHttpProxy(server->host, server->port, error, server->username, server->password)) {
         lastError = error;
         statusLine = "Connect failed";
         connected = false;
@@ -166,6 +180,9 @@ void Application::AddServerFromDraft() {
     cfg.name = draftName[0] ? draftName : draftHost;
     cfg.host = draftHost;
     cfg.port = static_cast<uint16_t>(draftPort);
+    cfg.group = draftGroup;
+    cfg.username = draftUsername;
+    cfg.password = draftPassword;
     servers_.push_back(std::move(cfg));
     selectedIndex = static_cast<int>(servers_.size()) - 1;
     ConfigStore::Save(servers_);
@@ -183,6 +200,51 @@ void Application::RemoveSelected() {
         selectedIndex = static_cast<int>(servers_.size()) - 1;
     }
     ConfigStore::Save(servers_);
+}
+
+std::vector<std::string> Application::KnownGroups() const {
+    std::set<std::string> unique;
+    for (const auto& s : servers_) {
+        if (!s.group.empty()) {
+            unique.insert(s.group);
+        }
+    }
+    return std::vector<std::string>(unique.begin(), unique.end());
+}
+
+bool Application::ExportServers() {
+    const std::string path = FileDialog::SaveFile(
+        hwnd_, L"Server list (*.txt)\0*.txt\0All files\0*.*\0", L"txt", L"servers-export.txt");
+    if (path.empty()) {
+        return false;  // user cancelled, not an error
+    }
+    if (!ConfigStore::ExportTo(path, servers_)) {
+        lastError = "Could not write export file.";
+        return false;
+    }
+    lastError.clear();
+    statusLine = "Exported " + std::to_string(servers_.size()) + " server(s).";
+    return true;
+}
+
+bool Application::ImportServers() {
+    const std::string path = FileDialog::OpenFile(
+        hwnd_, L"Server list (*.txt)\0*.txt\0All files\0*.*\0", L"txt");
+    if (path.empty()) {
+        return false;  // user cancelled, not an error
+    }
+    std::string error;
+    std::vector<ServerConfig> imported;
+    if (!ConfigStore::ImportFrom(path, imported, error)) {
+        lastError = "Import failed: " + error;
+        return false;
+    }
+    servers_ = std::move(imported);
+    selectedIndex = servers_.empty() ? -1 : 0;
+    ConfigStore::Save(servers_);
+    lastError.clear();
+    statusLine = "Imported " + std::to_string(servers_.size()) + " server(s).";
+    return true;
 }
 
 }  // namespace npm

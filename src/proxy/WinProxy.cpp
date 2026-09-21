@@ -143,7 +143,8 @@ bool WinProxy::Restore(const ProxySnapshot& snapshot, std::string& error) {
     return SetPerConnection(snapshot, error);
 }
 
-bool WinProxy::ApplyHttpProxy(const std::string& host, uint16_t port, std::string& error) {
+bool WinProxy::ApplyHttpProxy(const std::string& host, uint16_t port, std::string& error,
+                               const std::string& username, const std::string& password) {
     if (host.empty() || port == 0) {
         error = "Host and port are required.";
         return false;
@@ -158,7 +159,29 @@ bool WinProxy::ApplyHttpProxy(const std::string& host, uint16_t port, std::strin
     snap.flags = PROXY_TYPE_PROXY | PROXY_TYPE_DIRECT;
     snap.server = proxy.str();
     snap.bypass = L"<local>;localhost;127.0.0.1";
-    return SetPerConnection(snap, error);
+    if (!SetPerConnection(snap, error)) {
+        return false;
+    }
+
+    if (!username.empty()) {
+        SetDefaultCredentials(username, password);
+    }
+    return true;
+}
+
+void WinProxy::SetDefaultCredentials(const std::string& username, const std::string& password) {
+    // These options seed the process-wide default proxy credentials that WinINet
+    // falls back to when a proxy returns 407 Proxy Authentication Required.
+    // Best-effort only: some auth schemes (e.g. NTLM/Negotiate) ignore them and
+    // rely on the logged-in Windows account instead.
+    std::wstring wUser = Utf8ToWide(username);
+    std::wstring wPass = Utf8ToWide(password);
+    InternetSetOptionW(nullptr, INTERNET_OPTION_PROXY_USERNAME,
+                        const_cast<wchar_t*>(wUser.c_str()),
+                        static_cast<DWORD>((wUser.size() + 1) * sizeof(wchar_t)));
+    InternetSetOptionW(nullptr, INTERNET_OPTION_PROXY_PASSWORD,
+                        const_cast<wchar_t*>(wPass.c_str()),
+                        static_cast<DWORD>((wPass.size() + 1) * sizeof(wchar_t)));
 }
 
 bool WinProxy::ClearProxy(std::string& error) {

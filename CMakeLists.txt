@@ -51,6 +51,7 @@ add_executable(NetProxyManager WIN32
     src/proxy/WinProxy.cpp
     src/ping/Pinger.cpp
     src/config/ConfigStore.cpp
+    src/common/FileDialog.cpp
     src/tray/SystemTray.cpp
     src/net/TrafficMonitor.cpp
     resources/app.rc
@@ -97,6 +98,7 @@ target_link_libraries(NetProxyManager PRIVATE
     uuid
     dwmapi
     comctl32
+    comdlg32
     user32
     gdi32
     advapi32

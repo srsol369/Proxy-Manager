@@ -60,6 +60,13 @@ void Ui::Draw(Application& app) {
 
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Import server list...")) {
+                app.ImportServers();
+            }
+            if (ImGui::MenuItem("Export server list...")) {
+                app.ExportServers();
+            }
+            ImGui::Separator();
             if (ImGui::MenuItem("Minimize to tray")) {
                 app.HideToTray();
             }
@@ -76,9 +83,26 @@ void Ui::Draw(Application& app) {
     ImGui::TextDisabled("MVP  " NPM_VERSION);
     ImGui::Separator();
 
+    // Group filter
+    const auto groups = app.KnownGroups();
+    ImGui::SetNextItemWidth(220);
+    const std::string currentFilterLabel = app.groupFilter.empty() ? "All groups" : app.groupFilter;
+    if (ImGui::BeginCombo("Group filter", currentFilterLabel.c_str())) {
+        if (ImGui::Selectable("All groups", app.groupFilter.empty())) {
+            app.groupFilter.clear();
+        }
+        for (const auto& g : groups) {
+            if (ImGui::Selectable(g.c_str(), app.groupFilter == g)) {
+                app.groupFilter = g;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
     ImGui::BeginChild("servers", ImVec2(0, 260), ImGuiChildFlags_Borders);
-    if (ImGui::BeginTable("server_table", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY)) {
+    if (ImGui::BeginTable("server_table", 6, ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY)) {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Group", ImGuiTableColumnFlags_WidthFixed, 110.0f);
         ImGui::TableSetupColumn("Host", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Port", ImGuiTableColumnFlags_WidthFixed, 70.0f);
         ImGui::TableSetupColumn("Delay", ImGuiTableColumnFlags_WidthFixed, 80.0f);
@@ -87,11 +111,21 @@ void Ui::Draw(Application& app) {
 
         for (int i = 0; i < static_cast<int>(app.Servers().size()); ++i) {
             auto& s = app.Servers()[static_cast<size_t>(i)];
+            if (!app.groupFilter.empty() && s.group != app.groupFilter) {
+                continue;
+            }
+            ImGui::PushID(i);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             const bool selected = (app.selectedIndex == i);
             if (ImGui::Selectable(s.name.c_str(), selected, ImGuiSelectableFlags_SpanAllColumns)) {
                 app.selectedIndex = i;
+            }
+            ImGui::TableNextColumn();
+            if (s.group.empty()) {
+                ImGui::TextDisabled("—");
+            } else {
+                ImGui::TextUnformatted(s.group.c_str());
             }
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(s.host.c_str());
@@ -105,6 +139,7 @@ void Ui::Draw(Application& app) {
             }
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(s.lastPingOk ? "OK" : "n/a");
+            ImGui::PopID();
         }
         ImGui::EndTable();
     }
@@ -119,6 +154,15 @@ void Ui::Draw(Application& app) {
     if (ImGui::Button("Remove selected")) {
         app.RemoveSelected();
     }
+    ImGui::SameLine();
+    if (ImGui::Button("Import...")) {
+        app.ImportServers();
+    }
+    HelpMarker("Replaces the current list with servers loaded from a text file (same format used for export).");
+    ImGui::SameLine();
+    if (ImGui::Button("Export...")) {
+        app.ExportServers();
+    }
 
     ImGui::Spacing();
     ImGui::SeparatorText("Add HTTP proxy");
@@ -128,6 +172,17 @@ void Ui::Draw(Application& app) {
     ImGui::InputText("Host / domain", app.draftHost, sizeof(app.draftHost));
     ImGui::SetNextItemWidth(120);
     ImGui::InputInt("Port", &app.draftPort);
+    ImGui::SetNextItemWidth(160);
+    ImGui::InputText("Group", app.draftGroup, sizeof(app.draftGroup));
+    HelpMarker("Optional label used to filter/organize the server list, e.g. \"Work\" or \"Home\".");
+    ImGui::SetNextItemWidth(180);
+    ImGui::InputText("Proxy username", app.draftUsername, sizeof(app.draftUsername));
+    ImGui::SetNextItemWidth(180);
+    ImGui::InputText("Proxy password", app.draftPassword, sizeof(app.draftPassword), ImGuiInputTextFlags_Password);
+    HelpMarker(
+        "Optional. Stored in plain text in the local config file and pre-seeds WinINet's "
+        "default proxy credentials on Connect, so a Basic/NTLM auth popup can be skipped "
+        "for apps sharing this process. Leave blank if your proxy needs no login.");
     if (ImGui::Button("Save server")) {
         app.AddServerFromDraft();
     }
@@ -159,7 +214,18 @@ void Ui::Draw(Application& app) {
     ImGui::TextDisabled("Counters are system-wide, not proxy-session exclusive.");
 
     if (!app.lastError.empty()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "%s", app.lastError.c_str());
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.35f, 0.12f, 0.12f, 0.6f));
+        ImGui::BeginChild("error_banner", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
+        ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.45f, 1.0f), "Error");
+        ImGui::SameLine();
+        const bool dismissed = ImGui::SmallButton("Dismiss");
+        ImGui::TextWrapped("%s", app.lastError.c_str());
+        if (dismissed) {
+            app.lastError.clear();
+        }
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
     }
 
     ImGui::End();

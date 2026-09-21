@@ -33,15 +33,22 @@ public:
     void PingAll();
     void AddServerFromDraft();
     void RemoveSelected();
+    bool ExportServers();
+    bool ImportServers();
 
     std::vector<ServerConfig>& Servers() { return servers_; }
     const ServerConfig* Selected() const;
     ServerConfig* Selected();
+    std::vector<std::string> KnownGroups() const;
 
     int selectedIndex = -1;
     char draftName[128] = "New server";
     char draftHost[256] = "127.0.0.1";
     int draftPort = 8080;
+    char draftGroup[64] = {};
+    char draftUsername[128] = {};
+    char draftPassword[128] = {};
+    std::string groupFilter;  // empty = show all groups
 
     bool connected = false;
     std::string statusLine = "Disconnected";
