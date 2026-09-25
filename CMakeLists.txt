@@ -14,21 +14,19 @@ if(NOT WIN32)
     message(FATAL_ERROR "NetProxyManager is a Windows-only application (WinINet / Win32 / DirectX 11).")
 endif()
 
-set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/third_party/imgui")
-if(NOT EXISTS "${IMGUI_DIR}/imgui.cpp")
-    include(FetchContent)
-    FetchContent_Declare(
-        imgui
-        GIT_REPOSITORY https://github.com/ocornut/imgui.git
-        GIT_TAG        v1.91.8
-        GIT_SHALLOW    TRUE
-    )
-    FetchContent_GetProperties(imgui)
-    if(NOT imgui_POPULATED)
-        FetchContent_Populate(imgui)
-    endif()
-    set(IMGUI_DIR ${imgui_SOURCE_DIR})
+include(FetchContent)
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.91.8
+    GIT_SHALLOW    TRUE
+)
+FetchContent_GetProperties(imgui)
+if(NOT imgui_POPULATED)
+    FetchContent_Populate(imgui)
 endif()
+
+set(IMGUI_DIR ${imgui_SOURCE_DIR})
 
 add_library(imgui STATIC
     ${IMGUI_DIR}/imgui.cpp
@@ -51,7 +49,6 @@ add_executable(NetProxyManager WIN32
     src/proxy/WinProxy.cpp
     src/ping/Pinger.cpp
     src/config/ConfigStore.cpp
-    src/common/FileDialog.cpp
     src/tray/SystemTray.cpp
     src/net/TrafficMonitor.cpp
     resources/app.rc
@@ -62,10 +59,6 @@ target_include_directories(NetProxyManager PRIVATE
     ${CMAKE_SOURCE_DIR}/resources
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    wininet
-    # سایر کتابخانه‌های قبلی شما
-)
 target_compile_definitions(NetProxyManager PRIVATE
     UNICODE
     _UNICODE
@@ -94,11 +87,8 @@ target_link_libraries(NetProxyManager PRIVATE
     ws2_32
     shell32
     ole32
-    oleaut32
-    uuid
     dwmapi
     comctl32
-    comdlg32
     user32
     gdi32
     advapi32

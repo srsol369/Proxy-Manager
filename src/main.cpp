@@ -1,8 +1,5 @@
 #include "app/Application.h"
-#include "config/ConfigStore.h"
 #include "ui/Ui.h"
-
-#include "resource.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx11.h"
@@ -158,23 +155,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     wc.lpfnWndProc = WndProc;
     wc.hInstance = instance;
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wc.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(IDI_APPICON));
-    if (!wc.hIcon) {
-        wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-    }
+    wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
     wc.lpszClassName = L"NetProxyManagerWindow";
     RegisterClassExW(&wc);
-
-    const npm::WindowRect savedRect = npm::ConfigStore::LoadWindowRect();
 
     HWND hwnd = CreateWindowW(
         wc.lpszClassName,
         L"Net Proxy Manager",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_THICKFRAME,
-        savedRect.x,
-        savedRect.y,
-        savedRect.width,
-        savedRect.height,
+        120,
+        120,
+        920,
+        720,
         nullptr,
         nullptr,
         wc.hInstance,

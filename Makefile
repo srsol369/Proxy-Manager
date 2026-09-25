@@ -23,19 +23,19 @@ CXXFLAGS += -std=c++20 -O2 -Wall -Wextra \
 
 LDFLAGS  += -mwindows -municode -static-libgcc -static-libstdc++
 LIBS     := -ld3d11 -ldxgi -ld3dcompiler -lwininet -lwinhttp -liphlpapi \
-	-lws2_32 -lshell32 -lole32 -loleaut32 -luuid -ldwmapi -lcomctl32 -lcomdlg32 \
+	-lws2_32 -lshell32 -lole32 -loleaut32 -luuid -ldwmapi -lcomctl32 \
 	-luser32 -lgdi32 -ladvapi32
 
 APP_SRCS := \
 	src/main.cpp \
 	src/app/Application.cpp \
 	src/ui/Ui.cpp \
+	src/common/FileDialog.cpp \
 	src/proxy/WinProxy.cpp \
 	src/ping/Pinger.cpp \
 	src/config/ConfigStore.cpp \
-	src/common/FileDialog.cpp \
 	src/tray/SystemTray.cpp \
-	src/net/TrafficMonitor.cpp \
+	src/net/TrafficMonitor.cpp
 
 IMGUI_SRCS := \
 	$(IMGUI)/imgui.cpp \
@@ -61,7 +61,7 @@ $(BUILDDIR)/%.o: %.cpp
 	@$(MKDIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(RES): resources/app.rc resources/resource.h resources/app.ico
+$(RES): resources/app.rc resources/resource.h
 	@$(MKDIR)
 	$(WINDRES) --include-dir=resources --output-format=coff -i $< -o $@
 

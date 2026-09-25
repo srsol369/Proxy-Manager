@@ -1,7 +1,5 @@
 #include "resource.h"
 
-IDI_APPICON ICON "app.ico"
-
 IDR_TRAYMENU MENU
 BEGIN
     POPUP ""

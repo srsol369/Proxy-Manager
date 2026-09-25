@@ -9,8 +9,10 @@
 #include "resource.h"
 
 #include <algorithm>
-#include <cstring>
-#include <set>
+
+namespace {
+constexpr const wchar_t* kSpFilter = L"Proxy List (*.sp)\0*.sp\0All Files\0*.*\0\0";
+}  // namespace
 
 namespace npm {
 
@@ -25,6 +27,7 @@ bool Application::Initialize(HWND hwnd, HINSTANCE instance) {
     if (!servers_.empty()) {
         selectedIndex = 0;
     }
+
     tray_.Create(hwnd, instance, [this](UINT id) { OnTrayCommand(id); });
     statusLine = "Disconnected — proxy is not applied";
     return true;
@@ -55,17 +58,6 @@ void Application::DrawUi() {
 void Application::RequestExit() {
     wantsExit_ = true;
     if (hwnd_) {
-        if (!IsIconic(hwnd_) && !IsZoomed(hwnd_) && IsWindowVisible(hwnd_)) {
-            RECT rc{};
-            if (GetWindowRect(hwnd_, &rc)) {
-                WindowRect toSave;
-                toSave.x = rc.left;
-                toSave.y = rc.top;
-                toSave.width = rc.right - rc.left;
-                toSave.height = rc.bottom - rc.top;
-                ConfigStore::SaveWindowRect(toSave);
-            }
-        }
         DestroyWindow(hwnd_);
     }
 }
@@ -131,7 +123,7 @@ void Application::ConnectSelected() {
         hasPreviousOsProxy = WinProxy::CaptureCurrent(previousOsProxy, error);
     }
 
-    if (!WinProxy::ApplyHttpProxy(server->host, server->port, error, server->username, server->password)) {
+    if (!WinProxy::ApplyHttpProxy(server->host, server->port, error)) {
         lastError = error;
         statusLine = "Connect failed";
         connected = false;
@@ -180,9 +172,6 @@ void Application::AddServerFromDraft() {
     cfg.name = draftName[0] ? draftName : draftHost;
     cfg.host = draftHost;
     cfg.port = static_cast<uint16_t>(draftPort);
-    cfg.group = draftGroup;
-    cfg.username = draftUsername;
-    cfg.password = draftPassword;
     servers_.push_back(std::move(cfg));
     selectedIndex = static_cast<int>(servers_.size()) - 1;
     ConfigStore::Save(servers_);
@@ -202,49 +191,57 @@ void Application::RemoveSelected() {
     ConfigStore::Save(servers_);
 }
 
-std::vector<std::string> Application::KnownGroups() const {
-    std::set<std::string> unique;
-    for (const auto& s : servers_) {
-        if (!s.group.empty()) {
-            unique.insert(s.group);
+void Application::ExportServers() {
+    const std::string path = FileDialog::SaveFile(hwnd_, kSpFilter, L"sp", L"proxies.sp");
+    if (path.empty()) {
+        return;  // user cancelled
+    }
+
+    if (ConfigStore::ExportToSp(path, servers_)) {
+        lastImportExportMessage = "Exported " + std::to_string(servers_.size()) + " proxies to " + path;
+        lastError.clear();
+    } else {
+        lastImportExportMessage.clear();
+        lastError = "Failed to write " + path;
+    }
+}
+
+void Application::ImportServers() {
+    const std::string path = FileDialog::OpenFile(hwnd_, kSpFilter, L"sp");
+    if (path.empty()) {
+        return;  // user cancelled
+    }
+
+    bool ok = false;
+    std::vector<ServerConfig> imported = ConfigStore::ImportFromSp(path, ok);
+    if (!ok) {
+        lastImportExportMessage.clear();
+        lastError = "Not a valid .sp file: " + path;
+        return;
+    }
+
+    int added = 0;
+    int updated = 0;
+    for (auto& incoming : imported) {
+        auto it = std::find_if(servers_.begin(), servers_.end(),
+                                [&](const ServerConfig& s) { return s.id == incoming.id; });
+        if (it != servers_.end()) {
+            *it = incoming;
+            ++updated;
+        } else {
+            servers_.push_back(std::move(incoming));
+            ++added;
         }
     }
-    return std::vector<std::string>(unique.begin(), unique.end());
-}
 
-bool Application::ExportServers() {
-    const std::string path = FileDialog::SaveFile(
-        hwnd_, L"Server list (*.txt)\0*.txt\0All files\0*.*\0", L"txt", L"servers-export.txt");
-    if (path.empty()) {
-        return false;  // user cancelled, not an error
+    if (!servers_.empty() && selectedIndex < 0) {
+        selectedIndex = 0;
     }
-    if (!ConfigStore::ExportTo(path, servers_)) {
-        lastError = "Could not write export file.";
-        return false;
-    }
-    lastError.clear();
-    statusLine = "Exported " + std::to_string(servers_.size()) + " server(s).";
-    return true;
-}
-
-bool Application::ImportServers() {
-    const std::string path = FileDialog::OpenFile(
-        hwnd_, L"Server list (*.txt)\0*.txt\0All files\0*.*\0", L"txt");
-    if (path.empty()) {
-        return false;  // user cancelled, not an error
-    }
-    std::string error;
-    std::vector<ServerConfig> imported;
-    if (!ConfigStore::ImportFrom(path, imported, error)) {
-        lastError = "Import failed: " + error;
-        return false;
-    }
-    servers_ = std::move(imported);
-    selectedIndex = servers_.empty() ? -1 : 0;
     ConfigStore::Save(servers_);
+
+    lastImportExportMessage =
+        "Imported from " + path + " — added " + std::to_string(added) + ", updated " + std::to_string(updated);
     lastError.clear();
-    statusLine = "Imported " + std::to_string(servers_.size()) + " server(s).";
-    return true;
 }
 
 }  // namespace npm

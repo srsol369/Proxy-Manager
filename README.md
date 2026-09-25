@@ -1,54 +1,42 @@
 ﻿# Net Proxy Manager
 
-یک اپلیکیشن دسکتاپ ویندوز برای مدیریت پراکسی‌های HTTP/HTTPS، تست تأخیر سرورها (ICMP ping) و فعال/غیرفعال‌کردن پراکسی سیستم با استفاده از WinINet. رابط کاربری با Dear ImGui و DirectX 11 پیاده‌سازی شده و برنامه به حالت Tray می‌رود.
+برنامهٔ دسکتاپ ویندوز برای مدیریت لیست پراکسی HTTP، تست تأخیر (ICMP ping)، و اعمال/برداشتن پراکسی سیستم از طریق **WinINet** (`InternetSetOption` / Internet Options). رابط کاربری با **Dear ImGui + DirectX 11** است و برنامه به System Tray مینیمایز می‌شود.
 
-> این برنامه پراکسی سیستم ویندوز را روی سطح HTTP/HTTPS اعمال می‌کند. برای SOCKS5 نیاز به API‌های متفاوت‌تری است.
+> پراکسی سیستم ویندوز از نوع **HTTP/HTTPS** است. SOCKS5 را نمی‌توان با همین API به‌عنوان پراکسی سراسری WinINet اعمال کرد.
 
-## ویژگی‌ها
+## ساختار فایل‌ها
 
-- مدیریت لیست پراکسی‌ها
-- Ping و بررسی تأخیر هر سرور
-- فعال/غیرفعال‌کردن پراکسی سیستم
-- ذخیرهٔ لیست در %APPDATA%\NetProxyManager
-- Import/Export از فایل متنی
-- گروه‌بندی سرورها
-- Tray Mode و ذخیرهٔ اندازه/موقعیت پنجره
-
-## ساختار پروژه
-
-```text
+```
 System & File Utility/
 ├── CMakeLists.txt
-├── Makefile
-├── LICENSE.md
 ├── README.md
 ├── resources/
-│   ├── app.ico
-│   ├── app.rc
+│   ├── app.rc              # منوی راست‌کلیک Tray
 │   └── resource.h
-├── src/
-│   ├── main.cpp
-│   ├── app/
-│   ├── common/
-│   ├── config/
-│   ├── net/
-│   ├── ping/
-│   ├── proxy/
-│   ├── tray/
-│   └── ui/
-├── third_party/
-│   └── imgui/
-└── build/
+└── src/
+    ├── main.cpp            # Win32 + DX11 + حلقه ImGui + Tray
+    ├── common/Types.h
+    ├── app/Application.*   # وضعیت اتصال، لیست سرور، اکشن‌ها
+    ├── ui/Ui.*             # رابط ImGui
+    ├── proxy/WinProxy.*    # WinINet / Internet Settings
+    ├── ping/Pinger.*       # ICMP
+    ├── config/ConfigStore.*# ذخیره در %APPDATA%\NetProxyManager
+    ├── tray/SystemTray.*
+    ├── net/TrafficMonitor.*# تخمین throughput کارت شبکه
 ```
 
 ## پیش‌نیازها
 
 - ویندوز 10/11
 - CMake 3.20+
-- Visual Studio 2022 یا MinGW-w64
-- Git برای دانلود ImGui
+- Git (برای دانلود ImGui در اولین configure)
+- یکی از:
+  - **Visual Studio 2022** با workload «Desktop development with C++»
+  - یا **MinGW-w64** (GCC) به‌همراه Windows SDK
 
-## کامپایل
+## کامپایل با Visual Studio 2022
+
+در PowerShell:
 
 ```powershell
 cd "C:\Users\atlas\Desktop\System & File Utility"
@@ -56,20 +44,47 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release
 ```
 
-یا:
+خروجی: `build\Release\NetProxyManager.exe`
+
+باز کردن در IDE:
+
+```powershell
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+start build\NetProxyManager.sln
+```
+
+Startup Project را روی `NetProxyManager` بگذارید.
+
+## کامپایل با GCC (MinGW-w64)
+
+Ninja یا MinGW Makefiles:
 
 ```powershell
 cmake -S . -B build-mingw -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
 cmake --build build-mingw
 ```
 
-## اجرا
+باید `g++`، `cmake` و `windres` در PATH باشند. لینک DirectX (`d3d11`, `dxgi`) از Windows SDK انجام می‌شود.
+
+## اجرای گام‌به‌گام بعد از بیلد
 
 1. `NetProxyManager.exe` را اجرا کنید.
-2. سرورهای خود را اضافه کنید.
-3. روی **Connect** کلیک کنید.
-4. برای قطع اتصال، **Disconnect** را بزنید.
+2. سرور HTTP (آدرس و پورت) را اضافه و Save کنید. فایل در  
+   `%APPDATA%\NetProxyManager\servers.txt` ذخیره می‌شود.
+3. **Ping all** تأخیر ICMP را می‌سنجد و لیست را از سریع به کند مرتب می‌کند. اگر فایروال ICMP را ببندد، Delay خالی می‌ماند حتی اگر پورت پراکسی باز باشد.
+4. سرور را انتخاب کنید و **Connect** بزنید. تنظیمات Internet Options ویندوز عوض می‌شود.
+5. **Disconnect** تنظیم قبلی سیستم را برمی‌گرداند.
+6. بستن پنجره یا Minimize برنامه را به کنار ساعت می‌فرستد. خروج واقعی: منوی File → Exit یا راست‌کلیک Tray → Exit.
 
-## مجوز
+## راهنمای پیاده‌سازی نسخه‌های بعدی
 
-برای جزئیات کامل مجوز، به [LICENSE.md](./LICENSE.md) مراجعه کنید.
+1. **اعتبار پورت پراکسی:** علاوه بر ICMP، یک TCP connect به `host:port` با timeout کوتاه.
+2. **پروفایل‌ها:** HTTP / PAC URL (`INTERNET_PER_CONN_AUTOCONFIG_URL`).
+3. **اعتبارنامه:** WinINet پراکسی با یوزر/پسورد را جداگانه می‌خواهد؛ در MVP ذخیره نشده.
+4. **آیکون اختصاصی:** یک `app.ico` بسازید و در `resources/app.rc` با `IDI_APPICON` وصل کنید.
+
+## نکات ایمنی و محدودهٔ MVP
+
+- برنامه تنظیمات **همین کاربر ویندوز** را عوض می‌کند، نه سیاست دامنه و نه تونل VPN.
+- شمارندهٔ ترافیک، کل NIC است نه فقط ترافیک پراکسی.
+- هنگام Exit اگر هنوز Connected باشید، پراکسی قبلی سیستم restore می‌شود.

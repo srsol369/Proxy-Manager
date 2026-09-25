@@ -17,10 +17,7 @@ bool SystemTray::Create(HWND hwnd, HINSTANCE instance, CommandHandler onCommand)
     nid_.uID = 1;
     nid_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     nid_.uCallbackMessage = kCallbackMessage;
-    nid_.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(IDI_APPICON));
-    if (!nid_.hIcon) {
-        nid_.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-    }
+    nid_.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
     wcsncpy(nid_.szTip, L"Net Proxy Manager", ARRAYSIZE(nid_.szTip) - 1);
     nid_.szTip[ARRAYSIZE(nid_.szTip) - 1] = L'\0';
 
@@ -52,7 +49,7 @@ void SystemTray::ShowBalloon(const wchar_t* title, const wchar_t* body) {
     Shell_NotifyIconW(NIM_MODIFY, &nid_);
 }
 
-bool SystemTray::HandleMessage(UINT msg, WPARAM /*wParam*/, LPARAM lParam) {
+bool SystemTray::HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg != kCallbackMessage) {
         return false;
     }
